@@ -1,17 +1,27 @@
 package device;
 
 import mortgage.Request;
+import tools.Report;
 
 import static tools.ConstantsAndParameters.DEVICE_WORK_IMITATION_TIME;
 
 public class Device implements Runnable {
+  private final int number;
   private volatile Request request;
   private volatile boolean isFree;
   private final Object pause;
 
-  public Device() {
+  private final Report report;
+
+  public Device(int number, Report report) {
+    this.number = number;
+    this.report = report;
     this.isFree = true;
     this.pause = new Object();
+  }
+
+  public int getNumber() {
+    return number;
   }
 
   public synchronized boolean isFree() {
@@ -28,13 +38,18 @@ public class Device implements Runnable {
 
   @Override
   public void run() {
-    while (true)
+    long startBusyTime = 0;
+    while (!Thread.currentThread().isInterrupted())
     {
       synchronized (pause) {
         try {
+          long startDownTime = System.currentTimeMillis();
           pause.wait();
+          startBusyTime = System.currentTimeMillis();
+          report.addDeviceDownTime(startBusyTime - startDownTime);
         } catch (InterruptedException e) {
-          e.printStackTrace();
+          Thread.currentThread().interrupt();
+          break;
         }
       }
       System.out.println(request.getNumber() + " start");
@@ -43,10 +58,13 @@ public class Device implements Runnable {
       try {
         Thread.sleep(DEVICE_WORK_IMITATION_TIME);
       } catch (InterruptedException e) {
-        e.printStackTrace();
+        Thread.currentThread().interrupt();
       }
+      report.incrementProcessedRequestCount();
+      report.addTimeInSystem(System.currentTimeMillis() - request.getArrivalTime());
 
       System.out.println(request.getNumber() + " finish");
+      report.addDeviceBusyTime(System.currentTimeMillis() - startBusyTime);
       isFree = true;
     }
   }

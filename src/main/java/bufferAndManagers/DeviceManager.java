@@ -26,7 +26,7 @@ public class DeviceManager implements Runnable {
   public void run() {
     Request request = null;
     Device device = null;
-    while (true) {
+    while (!Thread.currentThread().isInterrupted()) {
       if (buffer.isEmpty()) {
         try {
           synchronized (bufferNotEmptyNotifier) {
@@ -34,19 +34,21 @@ public class DeviceManager implements Runnable {
             bufferNotEmptyNotifier.wait();
           }
         } catch (InterruptedException e) {
-          e.printStackTrace();
+          Thread.currentThread().interrupt();
+          break;
         }
       }
 
       try {
         device = selectDevice();
       } catch (Exception e) {
-        System.out.println(e.getMessage());
-        try {
+        //System.out.println(e.getMessage());
+        /*try {
           Thread.sleep(DEVICE_WORK_IMITATION_TIME / 3);
         } catch (InterruptedException interruptedException) {
-          interruptedException.printStackTrace();
-        }
+          Thread.currentThread().interrupt();
+          break;
+        }*/
         continue;
       }
 

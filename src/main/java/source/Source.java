@@ -15,14 +15,15 @@ public class Source implements Runnable {
 
   @Override
   public void run() {
-    while (true) {
+    while (!Thread.currentThread().isInterrupted()) {
       Request request = Generator.generate();
       bufferManager.emplace(request);
 
       try {
         Thread.sleep((long) (Math.random() * (SOURCE_MAX_DELAY - SOURCE_MIN_DELAY + 1)) + SOURCE_MIN_DELAY);
       } catch (InterruptedException e) {
-        e.printStackTrace();
+        Thread.currentThread().interrupt();
+        break;
       }
 
     }

@@ -7,14 +7,16 @@ public class Request {
   private int period;
   private double interestRate;
   private PaymentType paymentType;
+  private long arrivalTime;
 
-  public Request(int number, int estateCost, int initialPayment, int period, double interestRate, PaymentType paymentType) {
+  public Request(int number, int estateCost, int initialPayment, int period, double interestRate, PaymentType paymentType, long arrivalTime) {
     this.number = number;
     this.estateCost = estateCost;
     this.initialPayment = initialPayment;
     this.period = period;
     this.interestRate = interestRate;
     this.paymentType = paymentType;
+    this.arrivalTime = arrivalTime;
   }
 
   public int getNumber() {
@@ -39,6 +41,10 @@ public class Request {
 
   public PaymentType getPaymentType() {
     return paymentType;
+  }
+
+  public long getArrivalTime() {
+    return arrivalTime;
   }
 
   @Override

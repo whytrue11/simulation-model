@@ -12,9 +12,9 @@ public class Generator {
 
   public static Request generate() {
     int estateCost = ((int) (Math.random() * (GENERATOR_MAX_ESTATE_COST - GENERATOR_MIN_ESTATE_COST + 1))
-        + GENERATOR_MIN_ESTATE_COST) * MILLION;
+        + GENERATOR_MIN_ESTATE_COST);
 
-    int initialPayment = (int) (Math.random() * (GENERATOR_MIN_ESTATE_COST + 1)) * MILLION;
+    int initialPayment = (int) (Math.random() * (GENERATOR_MIN_ESTATE_COST + 1));
     int period = (int) (Math.random() * (GENERATOR_MAX_PERIOD - GENERATOR_MIN_PERIOD + 1)) + GENERATOR_MIN_PERIOD;
 
     double interestRate = Math.random() * (GENERATOR_MAX_INTEREST_RATE - GENERATOR_MIN_INTEREST_RATE + 1)
@@ -22,6 +22,6 @@ public class Generator {
 
     PaymentType paymentType = (((int) (Math.random() * 2)) == 1) ? PaymentType.ANNUITY : PaymentType.DIFFERENTIATED;
 
-    return new Request(number.incrementAndGet(), estateCost, initialPayment, period, interestRate, paymentType);
+    return new Request(number.incrementAndGet(), estateCost, initialPayment, period, interestRate, paymentType, System.currentTimeMillis());
   }
 }
