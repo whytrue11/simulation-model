@@ -10,7 +10,7 @@ import static tools.ConstantsAndParameters.*;
 public class Generator {
   private static final AtomicInteger number = new AtomicInteger();
 
-  public static Request generate() {
+  public static Request generate(int sourceNumber) {
     int estateCost = ((int) (Math.random() * (GENERATOR_MAX_ESTATE_COST - GENERATOR_MIN_ESTATE_COST + 1))
         + GENERATOR_MIN_ESTATE_COST);
 
@@ -22,6 +22,6 @@ public class Generator {
 
     PaymentType paymentType = (((int) (Math.random() * 2)) == 1) ? PaymentType.ANNUITY : PaymentType.DIFFERENTIATED;
 
-    return new Request(number.incrementAndGet(), estateCost, initialPayment, period, interestRate, paymentType, System.currentTimeMillis());
+    return new Request(number.incrementAndGet(), sourceNumber, estateCost, initialPayment, period, interestRate, paymentType, System.currentTimeMillis());
   }
 }

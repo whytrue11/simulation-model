@@ -2,8 +2,8 @@ package bufferAndManagers;
 
 import mortgage.Request;
 import tools.Report;
+import tools.ResponsesWriter;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -38,11 +38,11 @@ public class Buffer {
       }
     }
     else {
-      //TODO: отправка сообщения юзеру об отказе заявки
-      report.incrementRejectedRequestCount();
-      report.addTimeInSystem(System.currentTimeMillis() - request.getArrivalTime());
+      ResponsesWriter.requestRejection(request);
+
+      report.incrementRejectedRequestCount(oldRequest.getSourceNumber());
+      report.addRequestTimeInBuffer(oldRequest.getSourceNumber(),System.currentTimeMillis() - oldRequest.getArrivalTime());
     }
-    report.incrementTotalRequestCount();
   }
 
   public synchronized boolean isEmpty() {
@@ -53,17 +53,7 @@ public class Buffer {
     return occupiedCells == buffer.size();
   }
 
-  public BigDecimal getTimeInSystemRemainingRequests(long endSystemWorkTime) {
-    BigDecimal timeInSystemRemainingRequests = new BigDecimal(0);
-    for (Request request : buffer) {
-      if (request != null) {
-        timeInSystemRemainingRequests = timeInSystemRemainingRequests.add(BigDecimal.valueOf(endSystemWorkTime - request.getArrivalTime()));
-      }
-    }
-    return timeInSystemRemainingRequests;
-  }
-
-  protected List<Request> getRequestsList() {
+  protected synchronized List<Request> getRequestsList() {
     return buffer;
   }
 }

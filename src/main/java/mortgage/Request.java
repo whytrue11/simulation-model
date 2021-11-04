@@ -2,6 +2,7 @@ package mortgage;
 
 public class Request {
   private int number;
+  private int sourceNumber;
   private int estateCost;
   private int initialPayment;
   private int period;
@@ -9,8 +10,9 @@ public class Request {
   private PaymentType paymentType;
   private long arrivalTime;
 
-  public Request(int number, int estateCost, int initialPayment, int period, double interestRate, PaymentType paymentType, long arrivalTime) {
+  public Request(int number, int sourceNumber, int estateCost, int initialPayment, int period, double interestRate, PaymentType paymentType, long arrivalTime) {
     this.number = number;
+    this.sourceNumber = sourceNumber;
     this.estateCost = estateCost;
     this.initialPayment = initialPayment;
     this.period = period;
@@ -21,6 +23,10 @@ public class Request {
 
   public int getNumber() {
     return number;
+  }
+
+  public int getSourceNumber() {
+    return sourceNumber;
   }
 
   public int getEstateCost() {

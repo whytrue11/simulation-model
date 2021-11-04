@@ -2,8 +2,11 @@ package device;
 
 import mortgage.Request;
 import tools.Report;
+import tools.ResponsesWriter;
 
-import static tools.ConstantsAndParameters.DEVICE_WORK_IMITATION_TIME;
+import java.io.IOException;
+
+import static tools.ConstantsAndParameters.MILLISECONDS_PER_SECOND;
 
 public class Device implements Runnable {
   private final int number;
@@ -39,32 +42,43 @@ public class Device implements Runnable {
   @Override
   public void run() {
     long startBusyTime = 0;
-    while (!Thread.currentThread().isInterrupted())
-    {
+    long startDownTime = 0;
+    while (!Thread.currentThread().isInterrupted()) {
       synchronized (pause) {
         try {
-          long startDownTime = System.currentTimeMillis();
+          startDownTime = System.currentTimeMillis();
           pause.wait();
           startBusyTime = System.currentTimeMillis();
-          report.addDeviceDownTime(startBusyTime - startDownTime);
+          report.addDeviceDownTime(number, startBusyTime - startDownTime);
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
+          report.addDeviceDownTime(number, System.currentTimeMillis() - startDownTime);
           break;
         }
       }
-      System.out.println(request.getNumber() + " start");
-      MortgageCalculator.calculation(request);
 
       try {
-        Thread.sleep(DEVICE_WORK_IMITATION_TIME);
+        Thread.sleep((long) (Math.exp(Math.random()) * MILLISECONDS_PER_SECOND));
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-      }
-      report.incrementProcessedRequestCount();
-      report.addTimeInSystem(System.currentTimeMillis() - request.getArrivalTime());
+        report.incrementRejectedRequestCount(request.getSourceNumber());
+        report.addRequestTimeInBuffer(request.getSourceNumber(), startBusyTime - request.getArrivalTime());
 
-      System.out.println(request.getNumber() + " finish");
-      report.addDeviceBusyTime(System.currentTimeMillis() - startBusyTime);
+        ResponsesWriter.requestRejection(request);
+        break;
+      }
+      try {
+        synchronized (ResponsesWriter.getWorkbook()) {
+          MortgageCalculator.fileOutputCalculation(request, ResponsesWriter.getWorkbook(), ResponsesWriter.getResponsesFileName());
+        }
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+
+      report.incrementProcessedRequestCount(request.getSourceNumber());
+      report.addRequestServiceTime(request.getSourceNumber(), System.currentTimeMillis() - request.getArrivalTime());
+
+      report.addDeviceBusyTime(number, System.currentTimeMillis() - startBusyTime);
       isFree = true;
     }
   }

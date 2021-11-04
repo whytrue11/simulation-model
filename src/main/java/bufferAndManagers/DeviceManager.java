@@ -2,11 +2,11 @@ package bufferAndManagers;
 
 import device.Device;
 import mortgage.Request;
+import tools.Report;
+import tools.ResponsesWriter;
 
 import java.util.List;
 import java.util.Vector;
-
-import static tools.ConstantsAndParameters.DEVICE_WORK_IMITATION_TIME;
 
 public class DeviceManager implements Runnable {
   private final Vector<Device> devices;
@@ -14,44 +14,37 @@ public class DeviceManager implements Runnable {
   private int devicePointer;
   private int requestPointer;
 
+  private final Report report;
   private final Object bufferNotEmptyNotifier;
 
-  public DeviceManager(Buffer buffer, Vector<Device> devices, Object bufferNotEmptyNotifier) {
+  public DeviceManager(Buffer buffer, Vector<Device> devices, Report report, Object bufferNotEmptyNotifier) {
     this.devices = devices;
     this.buffer = buffer;
+    this.report = report;
     this.bufferNotEmptyNotifier = bufferNotEmptyNotifier;
   }
 
   @Override
   public void run() {
-    Request request = null;
-    Device device = null;
     while (!Thread.currentThread().isInterrupted()) {
       if (buffer.isEmpty()) {
         try {
           synchronized (bufferNotEmptyNotifier) {
-            System.out.println("Empty buffer");
             bufferNotEmptyNotifier.wait();
           }
         } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
           break;
         }
       }
 
+      Device device = null;
       try {
         device = selectDevice();
       } catch (Exception e) {
-        //System.out.println(e.getMessage());
-        /*try {
-          Thread.sleep(DEVICE_WORK_IMITATION_TIME / 3);
-        } catch (InterruptedException interruptedException) {
-          Thread.currentThread().interrupt();
-          break;
-        }*/
         continue;
       }
 
+      Request request = null;
       try {
         request = selectRequest();
       } catch (Exception e) {
@@ -60,11 +53,16 @@ public class DeviceManager implements Runnable {
       }
 
       device.requestProcessing(request);
-      synchronized (buffer) {
-        buffer.getRequestsList().forEach(System.out::print);
-        System.out.println("");
-      }
     }
+    long endWorkTime = System.currentTimeMillis();
+    buffer.getRequestsList().forEach(request -> {
+      if (request != null) {
+        ResponsesWriter.requestRejection(request);
+
+        report.incrementRejectedRequestCount(request.getSourceNumber());
+        report.addRequestTimeInBuffer(request.getSourceNumber(), endWorkTime - request.getArrivalTime());
+      }
+    });
   }
 
   private Device selectDevice() throws Exception {
