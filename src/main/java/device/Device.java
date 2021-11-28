@@ -9,34 +9,45 @@ import java.io.IOException;
 import static tools.ConstantsAndParameters.MILLISECONDS_PER_SECOND;
 
 public class Device implements Runnable {
+  private static int count;
+
   private final int number;
   private volatile Request request;
   private volatile boolean isFree;
-  private final Object pause;
+  private final Object newRequestNotifier;
 
   private final Report report;
+  private final Object stepReportSynchronizer;
 
-  public Device(int number, Report report) {
-    this.number = number;
+  public Device(Report report, Object stepReportSynchronizer) {
+    this.number = count++;
     this.report = report;
     this.isFree = true;
-    this.pause = new Object();
+    this.newRequestNotifier = new Object();
+    this.stepReportSynchronizer = stepReportSynchronizer;
   }
 
   public int getNumber() {
     return number;
   }
 
-  public synchronized boolean isFree() {
+  public boolean isFree() {
     return isFree;
   }
 
-  public synchronized void requestProcessing(Request request) {
-    this.request = request;
-    synchronized (pause) {
-      isFree = false;
-      pause.notify();
+  public void requestProcessing(Request request) {
+    synchronized (stepReportSynchronizer) {
+      try {
+        stepReportSynchronizer.wait();
+      } catch (InterruptedException ignored) {
+      }
     }
+    this.request = request;
+    synchronized (newRequestNotifier) {
+      isFree = false;
+      newRequestNotifier.notify();
+    }
+    System.out.println("Device " + number + ": start process request " + request.getNumber());
   }
 
   @Override
@@ -44,10 +55,10 @@ public class Device implements Runnable {
     long startBusyTime = 0;
     long startDownTime = 0;
     while (!Thread.currentThread().isInterrupted()) {
-      synchronized (pause) {
+      synchronized (newRequestNotifier) {
         try {
           startDownTime = System.currentTimeMillis();
-          pause.wait();
+          newRequestNotifier.wait();
           startBusyTime = System.currentTimeMillis();
           report.addDeviceDownTime(number, startBusyTime - startDownTime);
         } catch (InterruptedException e) {
@@ -65,6 +76,7 @@ public class Device implements Runnable {
         report.addRequestTimeInBuffer(request.getSourceNumber(), startBusyTime - request.getArrivalTime());
 
         ResponsesWriter.requestRejection(request);
+        System.out.println("Request " + request.getNumber() + " refused");
         break;
       }
       try {
@@ -79,6 +91,7 @@ public class Device implements Runnable {
       report.addRequestServiceTime(request.getSourceNumber(), System.currentTimeMillis() - request.getArrivalTime());
 
       report.addDeviceBusyTime(number, System.currentTimeMillis() - startBusyTime);
+      System.out.println("Device " + number + ": finish process request " + request.getNumber());
       isFree = true;
     }
   }

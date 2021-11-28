@@ -5,14 +5,8 @@ public class ConstantsAndParameters {
   public static final int MONTHS_PER_YEAR = 12;
   public static final int MILLISECONDS_PER_SECOND = 1000;
 
-  public static final int SIMULATION_TIME = 10 * MILLISECONDS_PER_SECOND;
-  public static final int BUFFER_SIZE = 20;
-  public static final int SOURCES_COUNT = 10;
-  public static final int DEVICES_COUNT = 5;
-  public static final int STEP_COUNT = 3;
-
   public static final long SOURCE_MAX_DELAY = 5 * MILLISECONDS_PER_SECOND;
-  public static final long SOURCE_MIN_DELAY = 2 * MILLISECONDS_PER_SECOND;
+  public static final long SOURCE_MIN_DELAY = 3 * MILLISECONDS_PER_SECOND;
 
   public static final int GENERATOR_MAX_ESTATE_COST = 20 * MILLION;
   public static final int GENERATOR_MIN_ESTATE_COST = 3 * MILLION;

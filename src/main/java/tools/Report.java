@@ -1,5 +1,6 @@
 package tools;
 
+import bufferAndManagers.DeviceManager;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
@@ -12,9 +13,12 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Vector;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Report {
+  private DeviceManager deviceManager;
+
   private final List<DeviceReport> deviceReports;
   private final List<SourceReport> sourceReports;
   private final int bufferSize;
@@ -33,8 +37,8 @@ public class Report {
   private final String reportFileName;
 
   public Report(int sourceCount, int deviceCount, int bufferSize, String reportFileName) {
-    this.sourceReports = new ArrayList<>(sourceCount);
-    this.deviceReports = new ArrayList<>(deviceCount);
+    this.sourceReports = new Vector<>(sourceCount);
+    this.deviceReports = new Vector<>(deviceCount);
     this.bufferSize = bufferSize;
 
     for (int i = 0; i < sourceCount; i++) {
@@ -52,6 +56,10 @@ public class Report {
     this.workbook = new HSSFWorkbook();
 
     this.reportFileName = reportFileName;
+  }
+
+  public void setDeviceManager(DeviceManager deviceManager) {
+    this.deviceManager = deviceManager;
   }
 
   //Source reports
@@ -84,38 +92,111 @@ public class Report {
     deviceReports.get(number).addBusyTime(busyTime);
   }
 
+  public synchronized String writeConsoleStepReport() {
+    StringBuilder stringBuilder = new StringBuilder();
+    stringBuilder.append(String.format("%10s", "Source"))
+        .append(String.format(" | %24s", "Generated request count"))
+        .append(String.format(" | %24s", "Rejected request count"))
+        .append(String.format(" %2s", "|\n"))
+        .append("------------------------------------------------------------------\n");
 
-  public synchronized void writeStepReport() throws IOException {
+    for (SourceReport sourceReport : sourceReports) {
+
+      stringBuilder.append(String.format("%10s", "Source " + sourceReport.getNumber()))
+          .append(String.format(" | %24s", sourceReport.getGeneratedRequestCount()))
+          .append(String.format(" | %24s", sourceReport.getRejectedRequestCount()))
+          .append(String.format(" %2s", "|\n"));
+    }
+    stringBuilder.append("------------------------------------------------------------------\n");
+
+
+    if (deviceManager != null) {
+      stringBuilder.append(String.format("\n%10s", "Device"))
+          .append(String.format(" | %7s", "Status"))
+          .append(String.format(" %2s", "|\n"))
+          .append("----------------------\n");;
+      int i = 0;
+      for (Boolean status : deviceManager.getDeviceStatuses()) {
+        stringBuilder
+            .append(String.format("%10s", (deviceManager.getDevicePointer() == i ? "*" : "") + "Device " + i++))
+            .append(String.format(" | %7s", status ? "Free" : "Busy"))
+            .append(String.format(" %2s", "|\n"));
+      }
+      stringBuilder.append("----------------------\n");
+
+      stringBuilder.append("\nBuffer\n")
+          .append(deviceManager.bufferOutput());
+    }
+
+    return stringBuilder.toString();
+  }
+
+  public synchronized void writeFileStepReport() throws IOException {
     Sheet sheet = workbook.createSheet("Step report " + (++stepCount));
     int rowCounter = 0;
     Row row = sheet.createRow(rowCounter++);
     List<Cell> cells = new ArrayList<>(6);
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 9; i++) {
       cells.add(row.createCell(i));
     }
     cells.get(0).setCellValue("Source number");
     cells.get(1).setCellValue("Generated request count");
-    cells.get(2).setCellValue("Failure probability");
-    cells.get(3).setCellValue("Requests service time");
+    cells.get(2).setCellValue("Rejected request count");
+    cells.get(3).setCellValue("Failure probability");
     cells.get(4).setCellValue("Requests time in buffer");
-    cells.get(5).setCellValue("Total time in system");
+    cells.get(5).setCellValue("Requests service time");
+    cells.get(6).setCellValue("Total time in system");
+    cells.get(7).setCellValue("Variance of time in buffer");
+    cells.get(8).setCellValue("Variance of service time");
 
     for (SourceReport report : sourceReports) {
       row = sheet.createRow(rowCounter++);
       cells.clear();
-      for (int j = 0; j < 6; j++) {
+      for (int j = 0; j < 7; j++) {
         cells.add(row.createCell(j));
       }
       cells.get(0).setCellValue("Source " + report.getNumber());
       cells.get(1).setCellValue(report.getGeneratedRequestCount());
-      cells.get(2).setCellValue((report.getProcessedRequestCount() + report.getRejectedRequestCount() == 0)
+      cells.get(2).setCellValue(report.getRejectedRequestCount());
+      cells.get(3).setCellValue(report.getProcessedRequestCount() + report.getRejectedRequestCount() == 0
           ? 0
           : (double) report.getRejectedRequestCount() / (report.getProcessedRequestCount() + report.getRejectedRequestCount()));
-      cells.get(3).setCellValue(report.getRequestServiceTime().longValue());
-      cells.get(4).setCellValue(report.getRequestTimeInBuffer().longValue());
-      cells.get(5).setCellValue(report.getRequestServiceTime().add(report.getRequestTimeInBuffer()).longValue());
+      cells.get(4).setCellValue(report.getRequestTimeInBuffer().doubleValue());
+      cells.get(5).setCellValue(report.getRequestServiceTime().doubleValue());
+      cells.get(6).setCellValue(report.getRequestServiceTime().add(report.getRequestTimeInBuffer()).doubleValue());
     }
 
+    //Variance
+    row = sheet.createRow(rowCounter++);
+    cells.clear();
+    for (int j = 0; j < 9; j++) {
+      cells.add(row.createCell(j));
+    }
+
+    BigDecimal avgBf = new BigDecimal(0);
+    BigDecimal avgServ = new BigDecimal(0);
+
+    for (SourceReport sourceReport : sourceReports) {
+      avgBf = avgBf.add(sourceReport.getRequestTimeInBuffer());
+      avgServ = avgServ.add(sourceReport.getRequestServiceTime());
+    }
+    avgBf = avgBf.divide(BigDecimal.valueOf(sourceReports.size()), 5, RoundingMode.HALF_EVEN);
+    avgServ = avgServ.divide(BigDecimal.valueOf(sourceReports.size()), 5, RoundingMode.HALF_EVEN);
+
+    BigDecimal sumBf = new BigDecimal(0);
+    BigDecimal sumServ = new BigDecimal(0);
+    for (SourceReport sourceReport : sourceReports) {
+      sumBf = sumBf.add(sourceReport.getRequestTimeInBuffer().subtract(avgBf).pow(2));
+      sumServ = sumServ.add(sourceReport.getRequestServiceTime().subtract(avgServ).pow(2));
+    }
+
+    cells.get(0).setCellValue("Total");
+    cells.get(7).setCellValue(sourceReports.size() <= 1
+        ? 0
+        : sumBf.divide(BigDecimal.valueOf(sourceReports.size() - 1), 5, RoundingMode.HALF_EVEN).doubleValue());
+    cells.get(8).setCellValue(sourceReports.size() <= 1
+        ? 0
+        : sumServ.divide(BigDecimal.valueOf(sourceReports.size() - 1), 5, RoundingMode.HALF_EVEN).doubleValue());
     sheet.createRow(rowCounter++);
 
     row = sheet.createRow(rowCounter++);
@@ -136,7 +217,7 @@ public class Report {
       cells.get(1).setCellValue(report.getUseFactor());
     }
 
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 9; i++) {
       sheet.autoSizeColumn(i);
     }
 

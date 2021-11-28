@@ -52,9 +52,4 @@ public class Request {
   public long getArrivalTime() {
     return arrivalTime;
   }
-
-  @Override
-  public String toString() {
-    return "{" + number + "} ";
-  }
 }

@@ -24,6 +24,7 @@ public class Buffer {
   public Request get(int index) {
     Request request = buffer.get(index);
     buffer.set(index, null);
+    System.out.println("Buffer  : request " + request.getNumber() + " taken for processing");
     --occupiedCells;
     return request;
   }
@@ -38,11 +39,13 @@ public class Buffer {
       }
     }
     else {
-      ResponsesWriter.requestRejection(request);
+      ResponsesWriter.requestRejection(oldRequest);
 
       report.incrementRejectedRequestCount(oldRequest.getSourceNumber());
       report.addRequestTimeInBuffer(oldRequest.getSourceNumber(),System.currentTimeMillis() - oldRequest.getArrivalTime());
+      System.out.println("Request " + oldRequest.getNumber() + " refused");
     }
+    System.out.println("Buffer  : request " + request.getNumber() + " placed");
   }
 
   public synchronized boolean isEmpty() {
@@ -53,7 +56,7 @@ public class Buffer {
     return occupiedCells == buffer.size();
   }
 
-  protected synchronized List<Request> getRequestsList() {
+  List<Request> getRequestsList() {
     return buffer;
   }
 }
